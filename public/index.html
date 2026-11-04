@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Checkout Demo</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #202124; background: #f5f6f8; }
+      body { margin: 0; padding: 2rem 1rem; }
+      main { max-width: 38rem; margin: 0 auto; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 0.5rem 2rem #20212412; }
+      h1 { margin-top: 0; }
+      .item, .row { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+      .item { padding: 1rem 0; border-block: 1px solid #e5e7eb; }
+      label { display: block; margin: 1.25rem 0 0.4rem; font-weight: 600; }
+      input { box-sizing: border-box; width: 100%; padding: 0.7rem; border: 1px solid #c9cdd4; border-radius: 0.5rem; font: inherit; }
+      input[type="number"] { width: 5.5rem; }
+      button { margin-top: 1rem; padding: 0.75rem 1rem; border: 0; border-radius: 0.5rem; color: white; background: #2457d6; font: inherit; font-weight: 700; cursor: pointer; }
+      button:focus-visible, input:focus-visible { outline: 3px solid #9bb4ff; outline-offset: 2px; }
+      #result { margin-top: 1.5rem; }
+      .row { padding: 0.35rem 0; }
+      .total { margin-top: 0.5rem; padding-top: 0.75rem; border-top: 1px solid #e5e7eb; font-size: 1.2rem; font-weight: 700; }
+      .muted { color: #5f6368; }
+      .error { color: #b42318; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Your cart</h1>
+      <p class="muted">A local checkout calculation demo. No payment is collected.</p>
+      <div class="item">
+        <div>
+          <strong>Demo shopping item</strong>
+          <div class="muted">₹1,000.00 each</div>
+        </div>
+        <label for="quantity">Quantity</label>
+        <input id="quantity" type="number" min="1" max="99" value="1" aria-label="Quantity">
+      </div>
+
+      <label for="coupon">Coupon code</label>
+      <input id="coupon" type="text" placeholder="Try SAVE10" autocomplete="off">
+      <button id="checkout" type="button">Calculate checkout</button>
+      <section id="result" aria-live="polite"></section>
+    </main>
+
+    <script>
+      const rupees = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
+      const formatPaise = (amountPaise) => rupees.format(amountPaise / 100);
+      const result = document.querySelector('#result');
+
+      document.querySelector('#checkout').addEventListener('click', async () => {
+        result.textContent = 'Calculating…';
+        const quantity = Number(document.querySelector('#quantity').value);
+        try {
+          const response = await fetch('/api/checkout', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              items: [{ name: 'Demo shopping item', pricePaise: 100000, quantity }],
+              couponCode: document.querySelector('#coupon').value,
+            }),
+          });
+          const checkout = await response.json();
+          if (!response.ok) throw new Error(checkout.error || 'Checkout could not be calculated');
+
+          result.className = '';
+          result.innerHTML = `
+            <div class="row"><span>Item subtotal</span><span>${formatPaise(checkout.subtotalPaise)}</span></div>
+            <div class="row"><span>Coupon discount</span><span>−${formatPaise(checkout.discountPaise)}</span></div>
+            <div class="row"><span>Shipping</span><span>${checkout.shippingPaise === 0 ? 'Free' : formatPaise(checkout.shippingPaise)}</span></div>
+            <div class="row total"><span>Total</span><span>${formatPaise(checkout.totalPaise)}</span></div>
+          `;
+        } catch (error) {
+          result.className = 'error';
+          result.textContent = error.message;
+        }
+      });
+    </script>
+  </body>
+</html>
