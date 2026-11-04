@@ -41,6 +41,56 @@ test('applies SAVE10 and charges shipping when the discounted subtotal stays bel
   });
 });
 
+test('charges shipping for a cart just below the threshold without a coupon', () => {
+  assert.deepEqual(calculateCheckout({
+    items: [{ pricePaise: 99_999, quantity: 1 }],
+  }), {
+    subtotalPaise: 99_999,
+    discountPaise: 0,
+    shippingPaise: 5_000,
+    totalPaise: 104_999,
+    couponApplied: false,
+  });
+});
+
+test('applies SAVE10 and charges shipping for a subtotal just below threshold', () => {
+  assert.deepEqual(calculateCheckout({
+    items: [{ pricePaise: 99_999, quantity: 1 }],
+    couponCode: 'SAVE10',
+  }), {
+    subtotalPaise: 99_999,
+    discountPaise: 10_000,
+    shippingPaise: 5_000,
+    totalPaise: 94_999,
+    couponApplied: true,
+  });
+});
+
+test('waives shipping for a cart just above the threshold without a coupon', () => {
+  assert.deepEqual(calculateCheckout({
+    items: [{ pricePaise: 100_001, quantity: 1 }],
+  }), {
+    subtotalPaise: 100_001,
+    discountPaise: 0,
+    shippingPaise: 0,
+    totalPaise: 100_001,
+    couponApplied: false,
+  });
+});
+
+test('applies SAVE10 and waives shipping for a subtotal just above threshold', () => {
+  assert.deepEqual(calculateCheckout({
+    items: [{ pricePaise: 100_001, quantity: 1 }],
+    couponCode: 'SAVE10',
+  }), {
+    subtotalPaise: 100_001,
+    discountPaise: 10_000,
+    shippingPaise: 0,
+    totalPaise: 90_001,
+    couponApplied: true,
+  });
+});
+
 test('applies SAVE10 and waives shipping when the discounted subtotal remains above threshold', () => {
   assert.deepEqual(calculateCheckout({
     items: [{ pricePaise: 120_000, quantity: 1 }],
@@ -50,6 +100,19 @@ test('applies SAVE10 and waives shipping when the discounted subtotal remains ab
     discountPaise: 12_000,
     shippingPaise: 0,
     totalPaise: 108_000,
+    couponApplied: true,
+  });
+});
+
+test('keeps free shipping when SAVE10 discounts a qualifying item subtotal below threshold', () => {
+  assert.deepEqual(calculateCheckout({
+    items: [{ pricePaise: 100_000, quantity: 1 }],
+    couponCode: 'SAVE10',
+  }), {
+    subtotalPaise: 100_000,
+    discountPaise: 10_000,
+    shippingPaise: 0,
+    totalPaise: 90_000,
     couponApplied: true,
   });
 });

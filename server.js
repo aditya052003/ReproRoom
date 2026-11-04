@@ -45,8 +45,7 @@ function calculateCheckout({ items, couponCode = '' } = {}) {
     : 0;
   const discountedSubtotalPaise = subtotalPaise - discountPaise;
 
-  // Intentional demo bug: the threshold is checked after the coupon discount.
-  const shippingPaise = discountedSubtotalPaise >= FREE_SHIPPING_THRESHOLD_PAISE
+  const shippingPaise = subtotalPaise >= FREE_SHIPPING_THRESHOLD_PAISE
     ? 0
     : SHIPPING_FEE_PAISE;
 

@@ -20,13 +20,13 @@ Then open <http://127.0.0.1:3000>. Set `PORT` to use a different local port.
 - `POST /api/checkout` accepts JSON such as `{"items":[{"name":"Demo item","pricePaise":100000,"quantity":1}],"couponCode":"SAVE10"}`.
 - The response contains `subtotalPaise`, `discountPaise`, `shippingPaise`, and `totalPaise`.
 
-## Seeded bug for the repair demo
+## Free-shipping eligibility
 
-The free-shipping check intentionally uses the **discounted** subtotal instead of the item subtotal before discounts. For example, a ₹1,000 cart with `SAVE10` is incorrectly charged ₹50 shipping: the buggy total is ₹950. The expected total is ₹900 with free shipping because the original item subtotal qualifies for free shipping. The baseline tests cover ordinary cases; they intentionally do not include this coupon/threshold regression case.
+Free-shipping eligibility uses the item subtotal before coupon discounts. For example, a ₹1,000 cart with `SAVE10` receives a ₹100 discount and free shipping, for a total of ₹900.
 
 ## Tests
 
-Run the baseline tests with:
+Run the tests, including the coupon/free-shipping regression case, with:
 
 ```sh
 npm test
