@@ -1,55 +1,79 @@
-# ReproRoom: from bug report to reviewed repair
+# ReproRoom
 
-ReproRoom is a team workflow for fixing bugs with a clear human review step. A teammate reports a bug in Mattermost, Switch connects that room to a Codex agent, Codex reproduces and tests a repair on its branch, and a person reviews the result before any merge or deployment.
+**Report a bug in Mattermost. Review the tested repair in the same room.**
 
-## Set up the room and agent
+A customer applies a discount to a ₹1,000 cart and unexpectedly loses free shipping. In ReproRoom, a teammate reports the ₹50 overcharge in chat, a Codex agent reproduces the failure and fixes it on a branch, and the teammate checks the result before deciding whether to accept it.
 
-1. In Switch, create a room bridged to Mattermost and add the teammate and Codex agent who will work on the demo.
-2. Give the agent access to this checkout and instructions to reproduce reported behavior with a focused test, make the smallest relevant repair on a separate branch, run the tests, and report the commands and results. Keep merge and deployment under separate human approval.
-3. Ask the teammate to report the exact steps, expected result, actual result, environment, and any relevant logs. For example: “With one ₹1,000 item and `SAVE10`, I expect ₹900 total and free shipping; the page shows ₹950 and ₹50 shipping.”
-4. Have the agent post its reproduction and test results in the room. A human reviews the branch and repair report, then accepts or requests changes.
+[Watch the demo](https://youtu.be/XqM5f-dg35M) · [Read the repair report](./REPAIR_REPORT.md) · [Inspect the tests](./test/checkout.test.js)
 
-## Walkthrough: the seeded checkout bug
+## What Switch makes possible
 
-The cart contains one ₹1,000 item. At baseline commit `abd68ed`, `SAVE10` reduces the item subtotal to ₹900 before the shipping check, so the bug adds ₹50 shipping and returns **₹950**. At repaired commit `658f2a9`, shipping eligibility uses the original ₹1,000 item subtotal, so shipping is free and the total is **₹900**.
+A bug report often starts in team chat, but the failing test, code change, and review decision end up in different places. ReproRoom uses Switch to connect a private Mattermost room, `reproroom`, to a local Codex agent, `repro-agent`. The reporter can ask for evidence and review the result where they first described the problem.
 
-The repaired commit's full test suite reports **10 passed, 0 failed** with `npm test`. The cases cover ₹999.99, ₹1,000, and ₹1,000.01, each with and without `SAVE10`, plus the coupon and endpoint cases.
+| Who | What happened in this demo |
+| --- | --- |
+| Reporter | Tagged the agent with the cart inputs, the ₹950 result, and the expected ₹900 total. |
+| Codex agent | Reproduced the error with a failing regression test, repaired the threshold check on a separate branch, and reported the commit and test results in the room. |
+| Human reviewer | Repeated the calculation in the browser and accepted the repair for the demo. Merging and deployment require separate approval. |
 
-## Run the demo
+## The ₹50 bug
 
-Requires Node.js 18 or newer. No package installation is needed; the app uses Node's built-in modules. Use a fresh clone that includes commits `abd68ed`, `658f2a9`, and branch `fix/checkout-free-shipping-eligibility`. Start with a clean working tree; `git status --short` should print nothing.
+The demo intentionally includes a bug in its baseline. Shipping should be free when the **original item subtotal** is at least ₹1,000. The baseline checked the discounted amount instead. One item and the same `SAVE10` coupon produce these two results:
+
+| Checkout | Item subtotal | Discount | Shipping | Total |
+| --- | ---: | ---: | ---: | ---: |
+| [Baseline · `abd68ed`](https://github.com/aditya052003/ReproRoom/commit/abd68ed) | ₹1,000 | ₹100 | ₹50 | **₹950** |
+| [Repair · `658f2a9`](https://github.com/aditya052003/ReproRoom/commit/658f2a9) | ₹1,000 | ₹100 | Free | **₹900** |
+
+The repaired suite passed **10 tests with 0 failures**. It checks ₹999.99, ₹1,000.00, and ₹1,000.01, each with and without the coupon. Those one-paise differences matter: the first cart owes ₹50 shipping, and the other two qualify for free shipping. The [repair report](./REPAIR_REPORT.md) records the failing regression and the results after the fix.
+
+## Try the repaired checkout
+
+Use Git and Node.js 18 or newer. The checkout runs locally using Node's built-in modules. Run these commands in a new folder:
 
 ```sh
-node --version
-git status --short
-git switch --detach abd68ed
-npm start
-```
-
-Open <http://127.0.0.1:3000>, enter `SAVE10`, and select **Calculate checkout**. The baseline shows a ₹950 total. Stop the server with Ctrl+C, then view and test the repair:
-
-```sh
-git switch --detach 658f2a9
+git clone --branch fix/checkout-free-shipping-eligibility https://github.com/aditya052003/ReproRoom.git
+cd ReproRoom
 npm test
 npm start
 ```
 
-The repaired page shows a ₹900 total with free shipping. Stop the server with Ctrl+C, then return to the repair branch:
+Open [the local checkout](http://127.0.0.1:3000), set **Quantity** to **1**, enter **SAVE10**, and select **Calculate checkout**. Look for **Free** on the shipping line and **₹900.00** at the bottom. On Windows PowerShell, use `npm.cmd test` and `npm.cmd start` if needed.
+
+### Compare the original failure
+
+Use the fresh clone above. Stop the server with **Ctrl+C**. Run `git status --short` and continue when its output is empty.
+
+```sh
+git switch --detach abd68ed
+npm start
+```
+
+Refresh the checkout and repeat the same inputs. The baseline shows **₹50 shipping** and a **₹950 total**. Stop the server again with **Ctrl+C**, then return to the reviewed branch:
 
 ```sh
 git switch fix/checkout-free-shipping-eligibility
 ```
 
-In Windows PowerShell, `npm.cmd start` and `npm.cmd test` are alternatives to `npm start` and `npm test`. The repair stays on its branch until a human separately approves a merge or deployment.
+## Recreate the team workflow
 
-## Repair details
+1. In Switch Console, connect Mattermost and create a private room for the reporter and agent. This demo uses `reproroom`.
+2. Create a local agent named `repro-agent`, select Codex as its provider, add the agent to the room, and give it access to the demo checkout. To repeat the repair exercise, start from baseline commit `abd68ed` in a fresh clone.
+3. Ask the agent to work on a separate repair branch, run the regression test **before** changing the implementation, run the full suite afterward, and post the before-and-after results and commit for review.
+4. In the room, tag the agent with a concrete report: “@repro-agent With one ₹1,000 item and SAVE10, checkout shows ₹50 shipping and a ₹950 total. I expect free shipping and ₹900. Please reproduce the issue and prepare a tested repair for review.”
+5. Repeat the checkout in the browser and record your review decision in the room. Keep merge and deployment under separate human approval.
 
-See the [repair report](REPAIR_REPORT.md) for the pre-fix reproduction, focused regression result, full-suite output, and threshold coverage. The [checkout tests](test/checkout.test.js) show the cases directly.
+## Checkout API
 
-## Checkout behavior
+`POST /api/checkout` accepts an item list and a coupon. Amounts are integer paise. For the repaired example, the request is:
 
-- Item prices and checkout amounts are stored and calculated as integer paise.
-- `SAVE10` discounts the item subtotal by 10%; a half-paise discount rounds up to the next paise.
-- Shipping is ₹50 when the item subtotal is below ₹1,000, and free at ₹1,000 or above before discounts.
-- `POST /api/checkout` accepts JSON such as `{"items":[{"name":"Demo item","pricePaise":100000,"quantity":1}],"couponCode":"SAVE10"}`.
-- The response contains `subtotalPaise`, `discountPaise`, `shippingPaise`, and `totalPaise`.
+```json
+{
+  "items": [{ "name": "Demo item", "pricePaise": 100000, "quantity": 1 }],
+  "couponCode": "SAVE10"
+}
+```
+
+The expected amounts are `subtotalPaise = 100000`, `discountPaise = 10000`, `shippingPaise = 0`, and `totalPaise = 90000`. The coupon takes 10% off the item subtotal, with half-paise discounts rounded up to the next paise.
+
+Built by Aditya Raut for the **Best Business Workflow** track of the Flip the Switch Hackathon.
